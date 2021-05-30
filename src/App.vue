@@ -290,8 +290,10 @@ export default {
     coinListAutosuggetions() {
       return this.ticker
         ? this.coinList
-            .filter((c) =>
-              c.name.toLowerCase().includes(this.ticker.toLowerCase()),
+            .filter(
+              (c) =>
+                c.name.toLowerCase().includes(this.ticker.toLowerCase()) ||
+                c.symbol.toLowerCase().includes(this.ticker.toLowerCase()),
             )
             .slice(0, 4)
         : [];
@@ -318,11 +320,14 @@ export default {
     },
 
     add(suggestion) {
+      if (suggestion) {
+        this.ticker = suggestion;
+      }
+
       if (
         this.tickers.findIndex(
           (tickerItem) =>
-            tickerItem.name.toLowerCase() === this.ticker.toLowerCase() ||
-            tickerItem.name.toLowerCase() === suggestion?.toLowerCase(),
+            tickerItem.name.toLowerCase() === this.ticker.toLowerCase(),
         ) > -1
       ) {
         this.isTickerInvalid = true;
@@ -330,7 +335,7 @@ export default {
         return;
       }
       const newTicker = {
-        name: suggestion ?? this.ticker.toUpperCase(),
+        name: this.ticker.toUpperCase(),
         price: "-",
       };
 
@@ -357,10 +362,11 @@ export default {
 
   watch: {
     ticker() {
-      if (this.ticker.length > 0 && this.isTickerInvalid) {
+      if (this.isTickerInvalid) {
         this.isTickerInvalid = false;
       }
     },
+
     selectedTicker() {
       this.graph = [];
     },
