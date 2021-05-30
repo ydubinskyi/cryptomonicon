@@ -1,7 +1,32 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
+    <div
+      class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center"
+      v-if="!isCoinListLoaded"
+    >
+      <svg
+        class="animate-spin -ml-1 mr-3 h-12 w-12 text-white"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    </div>
+
     <div class="container">
-      <div class="w-full my-4"></div>
       <section>
         <div class="flex">
           <div class="max-w-xs">
@@ -11,13 +36,29 @@
             <div class="mt-1 relative rounded-md shadow-md">
               <input
                 v-model="ticker"
-                @keydown.enter="add"
+                @keydown.enter="add()"
                 type="text"
                 name="wallet"
                 id="wallet"
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
                 placeholder="Например DOGE"
               />
+            </div>
+            <div
+              v-if="coinListAutosuggetions.length > 0"
+              class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
+            >
+              <span
+                v-for="c in coinListAutosuggetions"
+                :key="c.symbol"
+                @click="add(c.symbol)"
+                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
+              >
+                {{ c.symbol }}
+              </span>
+            </div>
+            <div v-if="isTickerInvalid" class="text-sm text-red-600">
+              Такой тикер уже добавлен
             </div>
           </div>
         </div>
@@ -149,22 +190,7 @@
 </template>
 
 <script>
-// [x] 6. Наличие в состоянии ЗАВИСИМЫХ ДАННЫХ | Критичность: 5+
-// [ ] 4. Запросы напрямую внутри компонента (???) | Критичность: 5
-// [ ] 2. При удалении остается подписка на загрузку тикера | Критичность: 5
-// [ ] 5. Обработка ошибок API | Критичность: 5
-// [ ] 3. Количество запросов | Критичность: 4
-// [x] 8. При удалении тикера не изменяется localStorage | Критичность: 4
-// [x] 1. Одинаковый код в watch | Критичность: 3
-// [ ] 9. localStorage и анонимные вкладки | Критичность: 3
-// [ ] 7. График ужасно выглядит если будет много цен | Критичность: 2
-// [ ] 10. Магические строки и числа (URL, 5000 миллисекунд задержки, ключ локал стораджа, количество на странице) |  Критичность: 1
-
-// Параллельно
-// [x] График сломан если везде одинаковые значения
-// [x] При удалении тикера остается выбор
-
-import { subscribeToTicker, unsubscribeFromTicker } from "./api";
+import { subscribeToTicker, unsubscribeFromTicker, getCoinList } from "./api";
 
 export default {
   name: "App",
@@ -172,8 +198,10 @@ export default {
   data() {
     return {
       ticker: "",
+      isTickerInvalid: false,
       filter: "",
 
+      coinList: [],
       tickers: [],
       selectedTicker: null,
 
@@ -206,8 +234,10 @@ export default {
         );
       });
     }
+  },
 
-    setInterval(this.updateTickers, 5000);
+  async mounted() {
+    this.coinList = await getCoinList();
   },
 
   computed: {
@@ -220,7 +250,9 @@ export default {
     },
 
     filteredTickers() {
-      return this.tickers.filter((ticker) => ticker.name.includes(this.filter));
+      return this.filter
+        ? this.tickers.filter((ticker) => ticker.name.includes(this.filter))
+        : this.tickers;
     },
 
     paginatedTickers() {
@@ -250,6 +282,20 @@ export default {
         page: this.page,
       };
     },
+
+    isCoinListLoaded() {
+      return this.coinList?.length > 0;
+    },
+
+    coinListAutosuggetions() {
+      return this.ticker
+        ? this.coinList
+            .filter((c) =>
+              c.name.toLowerCase().includes(this.ticker.toLowerCase()),
+            )
+            .slice(0, 4)
+        : [];
+    },
   },
 
   methods: {
@@ -271,17 +317,28 @@ export default {
       return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
 
-    add() {
-      const currentTicker = {
-        name: this.ticker,
+    add(suggestion) {
+      if (
+        this.tickers.findIndex(
+          (tickerItem) =>
+            tickerItem.name.toLowerCase() === this.ticker.toLowerCase() ||
+            tickerItem.name.toLowerCase() === suggestion?.toLowerCase(),
+        ) > -1
+      ) {
+        this.isTickerInvalid = true;
+
+        return;
+      }
+      const newTicker = {
+        name: suggestion ?? this.ticker,
         price: "-",
       };
-
-      this.tickers = [...this.tickers, currentTicker];
+      console.log({ newTicker });
+      this.tickers = [...this.tickers, newTicker];
       this.ticker = "";
       this.filter = "";
-      subscribeToTicker(currentTicker.name, (newPrice) =>
-        this.updateTicker(currentTicker.name, newPrice),
+      subscribeToTicker(newTicker.name, (newPrice) =>
+        this.updateTicker(newTicker.name, newPrice),
       );
     },
 
@@ -299,6 +356,11 @@ export default {
   },
 
   watch: {
+    ticker() {
+      if (this.ticker.length > 0 && this.isTickerInvalid) {
+        this.isTickerInvalid = false;
+      }
+    },
     selectedTicker() {
       this.graph = [];
     },
