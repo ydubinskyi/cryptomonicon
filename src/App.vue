@@ -330,10 +330,10 @@ export default {
         return;
       }
       const newTicker = {
-        name: suggestion ?? this.ticker,
+        name: suggestion ?? this.ticker.toUpperCase(),
         price: "-",
       };
-      console.log({ newTicker });
+
       this.tickers = [...this.tickers, newTicker];
       this.ticker = "";
       this.filter = "";
