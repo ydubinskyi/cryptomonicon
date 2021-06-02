@@ -111,6 +111,7 @@
             @click="select(t)"
             :class="{
               'border-4': selectedTicker === t,
+              'bg-red-100': t.valid === false,
             }"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
@@ -229,8 +230,8 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach((ticker) => {
-        subscribeToTicker(ticker.name, (newPrice) =>
-          this.updateTicker(ticker.name, newPrice),
+        subscribeToTicker(ticker.name, ({ price, valid }) =>
+          this.updateTicker(ticker.name, price, valid),
         );
       });
     }
@@ -301,7 +302,7 @@ export default {
   },
 
   methods: {
-    updateTicker(tickerName, price) {
+    updateTicker(tickerName, price, valid) {
       this.tickers
         .filter((t) => t.name === tickerName)
         .forEach((t) => {
@@ -309,6 +310,7 @@ export default {
             this.graph.push(price);
           }
           t.price = price;
+          t.valid = valid;
         });
     },
 
@@ -337,13 +339,14 @@ export default {
       const newTicker = {
         name: this.ticker.toUpperCase(),
         price: "-",
+        valid: true,
       };
 
       this.tickers = [...this.tickers, newTicker];
       this.ticker = "";
       this.filter = "";
-      subscribeToTicker(newTicker.name, (newPrice) =>
-        this.updateTicker(newTicker.name, newPrice),
+      subscribeToTicker(newTicker.name, ({ price, valid }) =>
+        this.updateTicker(newTicker.name, price, valid),
       );
     },
 

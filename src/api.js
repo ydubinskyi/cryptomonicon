@@ -7,17 +7,29 @@ const socket = new WebSocket(
 );
 
 const AGGREGATE_INDEX = "5";
+const INVALID_SUB = "500";
 
 socket.addEventListener("message", (e) => {
-  const { TYPE: type, FROMSYMBOL: currency, PRICE: newPrice } = JSON.parse(
-    e.data,
-  );
+  const {
+    TYPE: type,
+    FROMSYMBOL: currency,
+    PRICE: newPrice,
+    PARAMETER: errorParam,
+  } = JSON.parse(e.data);
+
+  if (type === INVALID_SUB) {
+    // change ticker validity if currency is invalid
+    const currencySymbol = errorParam.split("~")[2];
+    const handlers = tickersHandlers.get(currencySymbol) ?? [];
+    handlers.forEach((fn) => fn({ price: "-", valid: false }));
+  }
+
   if (type !== AGGREGATE_INDEX || newPrice === undefined) {
     return;
   }
 
   const handlers = tickersHandlers.get(currency) ?? [];
-  handlers.forEach((fn) => fn(newPrice));
+  handlers.forEach((fn) => fn({ price: newPrice, valid: true }));
 });
 
 function sendToWebSocket(message) {
