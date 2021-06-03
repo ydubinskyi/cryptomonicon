@@ -322,7 +322,7 @@ export default {
     },
 
     add(suggestion) {
-      if (suggestion) {
+      if (suggestion && typeof suggestion === "string") {
         this.ticker = suggestion;
       }
 
